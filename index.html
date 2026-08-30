@@ -145,6 +145,7 @@
             border: 1px solid rgba(191, 149, 63, 0.15);
             padding: 12px;
             text-align: left;
+            vertical-align: middle;
         }
         th { background-color: rgba(191, 149, 63, 0.15); color: #FCF6BA; }
         tr:nth-child(even) { background-color: rgba(255, 255, 255, 0.02); }
@@ -162,6 +163,8 @@
         .btn-add:hover { background: #059669; }
         .btn-info { background: #3b82f6; color: white; }
         .btn-info:hover { background: #2563eb; }
+        .btn-edit { background: #f59e0b; color: white; padding: 5px 10px; font-size: 12px; margin-right: 4px; }
+        .btn-edit:hover { background: #d97706; }
         .btn-del { background: #ef4444; color: white; padding: 5px 10px; font-size: 12px; }
         .btn-del:hover { background: #dc2626; }
 
@@ -208,7 +211,7 @@
     <div class="school-header">
         <h3>DINAS PENDIDIKAN DAN KEBUDAYAAN</h3>
         <h1 class="font-luxury gold-text-gradient">SMP NEGERI 4 MONTA</h1>
-        <p>Alamat: Jl. Lintas Tente-Parado, Desa Sakuru, Kecamatan Monta, Kabupaten Bima, Nusa Tenggara Barat</p>
+        <p>Alamat: Jl. Lintas Tente-Parado, Desa Sakuru, Kecamatan Monta, Kabupaten Bima, Nusa Tenggara Barat[cite: 1]</p>
     </div>
 
     <div class="datetime-box">
@@ -236,18 +239,19 @@
             <tr>
                 <th width="15%">Jam</th>
                 <th width="25%">Jenis Bel</th>
-                <th width="45%">Keterangan / Pengumuman</th>
-                <th width="15%" style="text-align: center;">Aksi</th>
+                <th width="43%">Keterangan / Pengumuman</th>
+                <th width="17%" style="text-align: center;">Aksi</th>
             </tr>
         </thead>
         <tbody id="scheduleTable"></tbody>
     </table>
 </div>
 
-<!-- Modal Tambah Jadwal -->
+<!-- Modal Tambah / Edit Jadwal -->
 <div class="modal" id="scheduleModal">
     <div class="modal-content">
-        <h3 class="font-luxury gold-text-gradient" style="margin-top: 0;">Tambah Jadwal Baru</h3>
+        <h3 id="modalTitle" class="font-luxury gold-text-gradient" style="margin-top: 0;">Tambah Jadwal Baru</h3>
+        <input type="hidden" id="editIndex">
         <div class="form-group">
             <label>Hari:</label>
             <select id="inputDay" class="luxury-input">
@@ -313,7 +317,7 @@
     const audioDoorbell = new Audio("doorbell.mp3");
     audioDoorbell.preload = "auto";
 
-    // Definisi Aturan Jumlah Ketukan Berdasarkan Permintaan Anda[cite: 1]
+    // Definisi Aturan Jumlah Ketukan
     const mappingJenisBel = {
         "datang": { nama: "Bel Datang (3x)", repeat: 3 },
         "masuk": { nama: "Bel Masuk (2x)", repeat: 2 },
@@ -322,7 +326,7 @@
         "pulang": { nama: "Bel Pulang (3x)", repeat: 3 }
     };
 
-    let jadwalPerHari = JSON.parse(localStorage.getItem('smpn4monta_luxury_jadwal_v2')) || {
+    let jadwalPerHari = JSON.parse(localStorage.getItem('smpn4monta_luxury_jadwal_v3')) || {
         "Senin": [
             { time: "07:00", type: "datang", text: "Selamat pagi. Upacara bendera hari Senin di SMP Negeri 4 Monta akan segera dimulai, siswa silakan ke lapangan." },
             { time: "09:30", type: "istirahat", text: "Waktu istirahat pertama dimulai." },
@@ -385,7 +389,7 @@
         document.getElementById("btnAktifkan").innerText = "✓ Audio Sistem Aktif";
     }
 
-    // Fungsi Looping Pemutaran Bel Panjang Sesuai Jumlah Ketukan
+    // Looping Pemutaran Bel Panjang Berurutan
     function putarBelPanjangBerkaliKali(jumlahRepeat, callbackSelesai) {
         let counter = 0;
 
@@ -394,7 +398,6 @@
                 counter++;
                 audioBelObj.currentTime = 0;
                 audioBelObj.onended = () => {
-                    // Beri jeda 1 detik antar ketukan panjang agar terdengar jelas
                     setTimeout(putarSatuKali, 1000);
                 };
                 
@@ -414,10 +417,8 @@
         putarSatuKali();
     }
 
-    // Alur Rangkaian: Bel Panjang (1x/2x/3x) -> Doorbell -> Suara Pengumuman (TTS) -> Doorbell
     function jalankanRangkaianBelLengkap(jenisBelKey, teksPengumuman) {
         let config = mappingJenisBel[jenisBelKey] || { repeat: 1 };
-        
         document.getElementById("status").innerText = `Status: Membunyikan Bel (${config.nama})...`;
 
         putarBelPanjangBerkaliKali(config.repeat, () => {
@@ -524,20 +525,36 @@
                 <td><span class="badge-jenis">${jenisInfo}</span></td>
                 <td>${item.text}</td>
                 <td style="text-align: center;">
+                    <button class="btn-edit" onclick="bukaModalEdit(${index})">Edit</button>
                     <button class="btn-del" onclick="hapusJadwal(${index})">Hapus</button>
                 </td>
             </tr>`;
             tableBody.innerHTML += row;
         });
 
-        localStorage.setItem('smpn4monta_luxury_jadwal_v2', JSON.stringify(jadwalPerHari));
+        localStorage.setItem('smpn4monta_luxury_jadwal_v3', JSON.stringify(jadwalPerHari));
     }
 
     function bukaModalTambah() {
+        document.getElementById("modalTitle").innerText = "Tambah Jadwal Baru";
+        document.getElementById("editIndex").value = "";
         document.getElementById("inputDay").value = selectedTabDay;
+        document.getElementById("inputDay").disabled = false;
         document.getElementById("inputTime").value = "";
         document.getElementById("inputType").value = "pergantian";
         document.getElementById("inputText").value = "";
+        document.getElementById("scheduleModal").style.display = "flex";
+    }
+
+    function bukaModalEdit(index) {
+        const item = jadwalPerHari[selectedTabDay][index];
+        document.getElementById("modalTitle").innerText = "Edit Jadwal";
+        document.getElementById("editIndex").value = index;
+        document.getElementById("inputDay").value = selectedTabDay;
+        document.getElementById("inputDay").disabled = true; // Kunci hari agar tidak mengubah kategori hari saat edit
+        document.getElementById("inputTime").value = item.time;
+        document.getElementById("inputType").value = item.type || "pergantian";
+        document.getElementById("inputText").value = item.text;
         document.getElementById("scheduleModal").style.display = "flex";
     }
 
@@ -546,6 +563,7 @@
     }
 
     function simpanJadwal() {
+        const editIdx = document.getElementById("editIndex").value;
         const targetHari = document.getElementById("inputDay").value;
         const time = document.getElementById("inputTime").value;
         const type = document.getElementById("inputType").value;
@@ -556,8 +574,15 @@
             return;
         }
 
-        jadwalPerHari[targetHari].push({ time, type, text });
-        selectedTabDay = targetHari;
+        if (editIdx === "") {
+            // Mode Tambah Baru
+            jadwalPerHari[targetHari].push({ time, type, text });
+            selectedTabDay = targetHari;
+        } else {
+            // Mode Simpan Perubahan Edit
+            jadwalPerHari[selectedTabDay][editIdx] = { time, type, text };
+        }
+
         renderTabs();
         renderTabel();
         tutupModal();
