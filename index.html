@@ -188,6 +188,18 @@
         .modal-buttons { text-align: right; margin-top: 20px; }
         .btn-save { background: #10b981; color: white; }
         .btn-cancel { background: #6b7280; color: white; margin-right: 5px; }
+        
+        .badge-jenis {
+            display: inline-block;
+            padding: 3px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            background: rgba(191, 149, 63, 0.2);
+            color: #FCF6BA;
+            border: 1px solid rgba(191, 149, 63, 0.4);
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -222,8 +234,9 @@
     <table>
         <thead>
             <tr>
-                <th width="20%">Jam</th>
-                <th width="65%">Keterangan / Pengumuman</th>
+                <th width="15%">Jam</th>
+                <th width="25%">Jenis Bel</th>
+                <th width="45%">Keterangan / Pengumuman</th>
                 <th width="15%" style="text-align: center;">Aksi</th>
             </tr>
         </thead>
@@ -250,6 +263,16 @@
         <div class="form-group">
             <label>Jam (Format HH:MM):</label>
             <input type="time" id="inputTime" class="luxury-input" required>
+        </div>
+        <div class="form-group">
+            <label>Jenis Bel & Ketukan:</label>
+            <select id="inputType" class="luxury-input">
+                <option value="datang">Bel Datang (3x Panjang)</option>
+                <option value="masuk">Bel Masuk Kelas (2x Panjang)</option>
+                <option value="pergantian">Bel Pergantian Jam (1x Panjang)</option>
+                <option value="istirahat">Bel Istirahat (2x Panjang)</option>
+                <option value="pulang">Bel Pulang Sekolah (3x Panjang)</option>
+            </select>
         </div>
         <div class="form-group">
             <label>Keterangan / Teks Pengumuman:</label>
@@ -290,40 +313,49 @@
     const audioDoorbell = new Audio("doorbell.mp3");
     audioDoorbell.preload = "auto";
 
-    let jadwalPerHari = JSON.parse(localStorage.getItem('smpn4monta_luxury_jadwal')) || {
+    // Definisi Aturan Jumlah Ketukan Berdasarkan Permintaan Anda[cite: 1]
+    const mappingJenisBel = {
+        "datang": { nama: "Bel Datang (3x)", repeat: 3 },
+        "masuk": { nama: "Bel Masuk (2x)", repeat: 2 },
+        "pergantian": { nama: "Bel Pergantian Jam (1x)", repeat: 1 },
+        "istirahat": { nama: "Bel Istirahat (2x)", repeat: 2 },
+        "pulang": { nama: "Bel Pulang (3x)", repeat: 3 }
+    };
+
+    let jadwalPerHari = JSON.parse(localStorage.getItem('smpn4monta_luxury_jadwal_v2')) || {
         "Senin": [
-            { time: "07:00", text: "Selamat pagi. Upacara bendera hari Senin di SMP Negeri 4 Monta akan segera dimulai, siswa silakan ke lapangan." },
-            { time: "09:30", text: "Waktu istirahat pertama dimulai." },
-            { time: "10:00", text: "Waktu istirahat selesai, siswa silakan masuk ke kelas." },
-            { time: "14:00", text: "Kegiatan belajar mengajar hari Senin selesai. Selamat jalan, hati-hati di jalan." }
+            { time: "07:00", type: "datang", text: "Selamat pagi. Upacara bendera hari Senin di SMP Negeri 4 Monta akan segera dimulai, siswa silakan ke lapangan." },
+            { time: "09:30", type: "istirahat", text: "Waktu istirahat pertama dimulai." },
+            { time: "10:00", type: "masuk", text: "Waktu istirahat selesai, siswa silakan masuk ke kelas." },
+            { time: "14:00", type: "pulang", text: "Kegiatan belajar mengajar hari Senin selesai. Selamat jalan, hati-hati di jalan." }
         ],
         "Selasa": [
-            { time: "07:00", text: "Selamat pagi. Jam pelajaran pertama hari Selasa di SMP Negeri 4 Monta dimulai." },
-            { time: "09:30", text: "Waktu istirahat pertama dimulai." },
-            { time: "10:00", text: "Waktu istirahat selesai, siswa kembali ke kelas." },
-            { time: "14:00", text: "Kegiatan belajar hari Selasa selesai." }
+            { time: "07:00", type: "datang", text: "Selamat pagi. Jam pelajaran pertama hari Selasa di SMP Negeri 4 Monta dimulai." },
+            { time: "09:30", type: "istirahat", text: "Waktu istirahat pertama dimulai." },
+            { time: "10:00", type: "masuk", text: "Waktu istirahat selesai, siswa kembali ke kelas." },
+            { time: "14:00", type: "pulang", text: "Kegiatan belajar hari Selasa selesai." }
         ],
         "Rabu": [
-            { time: "07:00", text: "Selamat pagi. Jam pelajaran hari Rabu dimulai." },
-            { time: "09:30", text: "Waktu istirahat pertama dimulai." },
-            { time: "10:00", text: "Waktu istirahat selesai." },
-            { time: "14:00", text: "Jam pelajaran Rabu selesai." }
+            { time: "07:00", type: "datang", text: "Selamat pagi. Jam pelajaran hari Rabu dimulai." },
+            { time: "09:30", type: "istirahat", text: "Waktu istirahat pertama dimulai." },
+            { time: "10:00", type: "masuk", text: "Waktu istirahat selesai." },
+            { time: "14:00", type: "pulang", text: "Jam pelajaran Rabu selesai." }
         ],
         "Kamis": [
-            { time: "07:00", text: "Selamat pagi. Jam pelajaran hari Kamis dimulai." },
-            { time: "09:30", text: "Waktu istirahat pertama dimulai." },
-            { time: "10:00", text: "Waktu istirahat selesai." },
-            { time: "14:00", text: "Jam pelajaran Kamis selesai." }
+            { time: "07:00", type: "datang", text: "Selamat pagi. Jam pelajaran hari Kamis dimulai." },
+            { time: "09:30", type: "istirahat", text: "Waktu istirahat pertama dimulai." },
+            { time: "10:00", type: "masuk", text: "Waktu istirahat selesai." },
+            { time: "14:00", type: "pulang", text: "Jam pelajaran Kamis selesai." }
         ],
         "Jumat": [
-            { time: "07:00", text: "Selamat pagi. Kegiatan keagamaan pagi hari Jumat di SMP Negeri 4 Monta dimulai." },
-            { time: "11:30", text: "Waktu istirahat siang dan persiapan sholat jumat dimulai." },
-            { time: "13:30", text: "Kegiatan belajar siang hari Jumat dimulai." },
-            { time: "14:00", text: "Kegiatan belajar hari Jumat selesai." }
+            { time: "07:00", type: "datang", text: "Selamat pagi. Kegiatan keagamaan pagi hari Jumat di SMP Negeri 4 Monta dimulai." },
+            { time: "11:30", type: "istirahat", text: "Waktu istirahat siang dan persiapan sholat jumat dimulai." },
+            { time: "13:30", type: "masuk", text: "Kegiatan belajar siang hari Jumat dimulai." },
+            { time: "14:00", type: "pulang", text: "Kegiatan belajar hari Jumat selesai." }
         ],
         "Sabtu": [
-            { time: "07:00", text: "Selamat pagi. Kegiatan ekstrakurikuler hari Sabtu dimulai." },
-            { time: "12:00", text: "Kegiatan hari Sabtu telah selesai. Selamat libur akhir pekan." }
+            { time: "07:00", type: "datang", text: "Selamat pagi. Kegiatan ekstrakurikuler hari Sabtu dimulai." },
+            { time: "12:00", type: "pulang", text: "Kegiatan hari Sabtu telah selesai. Selamat libur akhir pekan." }
         ],
         "Minggu": []
     };
@@ -331,7 +363,6 @@
     const todayIndex = new Date().getDay();
     selectedTabDay = listHari[todayIndex];
 
-    // Pemanasan / Aktivasi Audio Browser
     function aktifkanAudioSystem() {
         audioBelObj.play().then(() => {
             audioBelObj.pause();
@@ -354,26 +385,46 @@
         document.getElementById("btnAktifkan").innerText = "✓ Audio Sistem Aktif";
     }
 
-    // ALUR PEMUTARAN JADWAL RUTIN (4 Step): Bel Panjang -> Doorbell -> TTS -> Doorbell
-    function jalankanRangkaianBelLengkap(teksPengumuman) {
-        audioBelObj.currentTime = 0;
-        
-        const lanjutKeDoorbell1 = () => {
-            jalankanPengumumanDoorbell(teksPengumuman);
-        };
+    // Fungsi Looping Pemutaran Bel Panjang Sesuai Jumlah Ketukan
+    function putarBelPanjangBerkaliKali(jumlahRepeat, callbackSelesai) {
+        let counter = 0;
 
-        audioBelObj.onended = lanjutKeDoorbell1;
-
-        const playPromise = audioBelObj.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(error => {
-                console.warn("Bel utama gagal diputar, melanjutkan ke doorbell:", error);
-                lanjutKeDoorbell1();
-            });
+        function putarSatuKali() {
+            if (counter < jumlahRepeat) {
+                counter++;
+                audioBelObj.currentTime = 0;
+                audioBelObj.onended = () => {
+                    // Beri jeda 1 detik antar ketukan panjang agar terdengar jelas
+                    setTimeout(putarSatuKali, 1000);
+                };
+                
+                const playPromise = audioBelObj.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.warn("Gagal memutar bel:", error);
+                        setTimeout(putarSatuKali, 500);
+                    });
+                }
+            } else {
+                audioBelObj.onended = null;
+                if (callbackSelesai) callbackSelesai();
+            }
         }
+
+        putarSatuKali();
     }
 
-    // ALUR PEMBERITAHUAN KHUSUS (3 Step): Doorbell -> TTS -> Doorbell
+    // Alur Rangkaian: Bel Panjang (1x/2x/3x) -> Doorbell -> Suara Pengumuman (TTS) -> Doorbell
+    function jalankanRangkaianBelLengkap(jenisBelKey, teksPengumuman) {
+        let config = mappingJenisBel[jenisBelKey] || { repeat: 1 };
+        
+        document.getElementById("status").innerText = `Status: Membunyikan Bel (${config.nama})...`;
+
+        putarBelPanjangBerkaliKali(config.repeat, () => {
+            jalankanPengumumanDoorbell(teksPengumuman);
+        });
+    }
+
     function jalankanPengumumanDoorbell(teksPengumuman) {
         putarDoorbell(() => {
             ucapkanPengumuman(teksPengumuman, () => {
@@ -415,7 +466,6 @@
         }
     }
 
-    // Fungsi Pengumuman Khusus (Manual Modal)
     function bukaModalInfo() {
         document.getElementById("inputInfoText").value = "";
         document.getElementById("infoModal").style.display = "flex";
@@ -468,8 +518,10 @@
         jadwalPerHari[selectedTabDay].sort((a, b) => a.time.localeCompare(b.time));
 
         jadwalPerHari[selectedTabDay].forEach((item, index) => {
+            let jenisInfo = mappingJenisBel[item.type] ? mappingJenisBel[item.type].nama : "Bel Pergantian Jam (1x)";
             let row = `<tr>
                 <td><strong>${item.time}</strong></td>
+                <td><span class="badge-jenis">${jenisInfo}</span></td>
                 <td>${item.text}</td>
                 <td style="text-align: center;">
                     <button class="btn-del" onclick="hapusJadwal(${index})">Hapus</button>
@@ -478,12 +530,13 @@
             tableBody.innerHTML += row;
         });
 
-        localStorage.setItem('smpn4monta_luxury_jadwal', JSON.stringify(jadwalPerHari));
+        localStorage.setItem('smpn4monta_luxury_jadwal_v2', JSON.stringify(jadwalPerHari));
     }
 
     function bukaModalTambah() {
         document.getElementById("inputDay").value = selectedTabDay;
         document.getElementById("inputTime").value = "";
+        document.getElementById("inputType").value = "pergantian";
         document.getElementById("inputText").value = "";
         document.getElementById("scheduleModal").style.display = "flex";
     }
@@ -495,6 +548,7 @@
     function simpanJadwal() {
         const targetHari = document.getElementById("inputDay").value;
         const time = document.getElementById("inputTime").value;
+        const type = document.getElementById("inputType").value;
         const text = document.getElementById("inputText").value;
 
         if (!time || !text) {
@@ -502,7 +556,7 @@
             return;
         }
 
-        jadwalPerHari[targetHari].push({ time, text });
+        jadwalPerHari[targetHari].push({ time, type, text });
         selectedTabDay = targetHari;
         renderTabs();
         renderTabel();
@@ -538,8 +592,8 @@
                     if (!sessionStorage.getItem(keyTriggered)) {
                         sessionStorage.setItem(keyTriggered, "true");
                         
-                        document.getElementById("status").innerText = `Status: Membunyikan bel (${currentDayName} - ${item.time})`;
-                        jalankanRangkaianBelLengkap(item.text);
+                        let tipeBel = item.type || "pergantian";
+                        jalankanRangkaianBelLengkap(tipeBel, item.text);
 
                         setTimeout(() => {
                             sessionStorage.removeItem(keyTriggered);
@@ -554,8 +608,7 @@
         if (!isAudioSystemActive) {
             aktifkanAudioSystem();
         }
-        document.getElementById("status").innerText = "Status: Menguji coba bel SMP Negeri 4 Monta...";
-        jalankanRangkaianBelLengkap("Perhatian kepada seluruh warga SMP Negeri 4 Monta, ini adalah uji coba suara bel otomatis.");
+        jalankanRangkaianBelLengkap("pulang", "Perhatian kepada seluruh warga SMP Negeri 4 Monta, ini adalah uji coba suara bel pulang sekolah.");
     }
 
     renderTabs();
